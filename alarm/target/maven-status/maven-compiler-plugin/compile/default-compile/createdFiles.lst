@@ -1,0 +1,12 @@
+ezbnb\Msg.class
+ezbnb\PayCanceled.class
+ezbnb\AbstractEvent$1.class
+ezbnb\PolicyHandler.class
+ezbnb\AlarmApplication.class
+ezbnb\BookingCanceled.class
+ezbnb\PayApproved.class
+ezbnb\config\kafka\KafkaProcessor.class
+ezbnb\MsgRepository.class
+ezbnb\Booked.class
+ezbnb\AbstractEvent.class
+ezbnb\MsgController.class

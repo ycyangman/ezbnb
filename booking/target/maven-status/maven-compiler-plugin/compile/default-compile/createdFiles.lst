@@ -1,0 +1,12 @@
+ezbnb\Booking.class
+ezbnb\BookingApplication.class
+ezbnb\AbstractEvent$1.class
+ezbnb\PolicyHandler.class
+ezbnb\external\Payment.class
+ezbnb\BookingCanceled.class
+ezbnb\external\PaymentService.class
+ezbnb\BookingController.class
+ezbnb\config\kafka\KafkaProcessor.class
+ezbnb\Booked.class
+ezbnb\BookingRepository.class
+ezbnb\AbstractEvent.class

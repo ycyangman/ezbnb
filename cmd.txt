@@ -18,7 +18,7 @@ kafka-console-consumer.bat --bootstrap-server http://localhost:9092 --topic 토픽
 1. https://github.com/ 깃허브 사이트 가서 repository 생성 (서비스별로 생성)
 2. HTTP URL 복사해서 보관 (ex : https://github.com/niceduck76/aws-order.git)
 
-https://github.com/ycyangman/ezbnb.git
+git remote add origin "https://github.com/ycyangman/ezbnb.git"
 
 
 CMD 창 띄워서 명령어 수행.

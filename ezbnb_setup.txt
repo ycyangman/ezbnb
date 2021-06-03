@@ -1,0 +1,164 @@
+
+
+Microsoft Visual Studio Code
+The Microsoft Visual Studio Code editor is compatible with lombok.
+
+Add the vscode-lombok plugin to your Visual Studio Code IDE to add lombok support.
+
+press Ctrl + Shift + X to open the extension manager.
+Type lombok to find the plugin, and click install.
+Reload VS Code when asked.
+
+
+
+
+1) zookeper start
+2) kafka start
+----------------------------------------------------------------
+D:
+cd D:\MSA\kafka_2.13-2.8.0\bin\windows\
+zookeeper-server-start.bat  ../../config/zookeeper.properties
+
+kafka-server-start.bat ../../config/server.properties
+
+3). CMD창 가서 이벤트 로그 보기
+-- kafka-console-consumer.bat --bootstrap-server http://localhost:9092 --topic 토픽명 --from-beginning
+
+kafka-console-consumer.bat --bootstrap-server http://localhost:9092 --topic ezbnb --from-beginning
+
+      bindings:
+        event-in:
+          group: product
+          destination: ezbnb <-- 토픽명
+          contentType: application/json
+        event-out:
+          destination: ezbnb
+          contentType: application/json
+
+4). room MSA start
+cd D:\MSA\workspace\ezbnb\room
+mvn spring-boot:run
+
+5) room service 확인
+http http://localhost:8081/rooms
+
+==>
+HTTP/1.1 200
+Content-Type: application/hal+json;charset=UTF-8
+Date: Mon, 24 May 2021 05:31:34 GMT
+Transfer-Encoding: chunked
+
+{
+    "_embedded": {
+        "rooms": []
+    },
+    "_links": {
+        "profile": {
+            "href": "http://localhost:8081/profile/rooms"
+        },
+        "self": {
+            "href": "http://localhost:8081/rooms{?page,size,sort}",
+            "templated": true
+        }
+    },
+    "page": {
+        "number": 0,
+        "size": 20,
+        "totalElements": 0,
+        "totalPages": 0
+    }
+}
+
+6) room service 등록
+    private String roomName;
+    private Double price;
+    private String address;
+    private String status;
+	
+http POST localhost:8085/rooms roomName="장미" price=50000 address="서울시광화문 100번지" status="empty"
+
+HTTP/1.1 201
+Content-Type: application/json;charset=UTF-8
+Date: Mon, 24 May 2021 06:07:10 GMT
+Location: http://localhost:8081/rooms/1
+Transfer-Encoding: chunked
+
+{
+    "_links": {
+        "room": {
+            "href": "http://localhost:8081/rooms/1"
+        },
+        "self": {
+            "href": "http://localhost:8081/rooms/1"
+        }
+    },
+    "address": "서울시광화문 100번지",
+    "price": 50000.0,
+    "roomName": "장미",
+    "status": "empty"
+}
+
+consumer 이벤트 로그
+{"eventType":"RoomRegistered","timestamp":"20210524150710","id":1
+
+
+7) gateway spring boot start
+D:\MSA\workspace\mall\gateway\src\main\resources\application.yml =>
+server:
+  port: 8088 => 8080
+  
+ 주) ezbnb의 기본 port는 8080로 접근
+
+7.1)
+D:\MSA\workspace\ezbnb\gateway> mvn spring-boot:run
+
+7.2)
+D:\MSA\workspace\ezbnb\room>http localhost:8080/rooms
+
+결과:
+HTTP/1.1 200 OK
+Content-Type: application/hal+json;charset=UTF-8
+Date: Mon, 24 May 2021 06:55:28 GMT
+transfer-encoding: chunked
+
+{
+    "_embedded": {
+        "rooms": [
+            {
+                "_links": {
+                    "room": {
+                        "href": "http://localhost:8081/rooms/1"
+                    },
+                    "self": {
+                        "href": "http://localhost:8081/rooms/1"
+                    }
+                },
+                "address": "서울시광화문 100번지",
+                "price": 50000.0,
+                "roomName": "장미",
+                "status": "empty"
+            }
+        ]
+    },
+    "_links": {
+        "profile": {
+            "href": "http://localhost:8081/profile/rooms"
+        },
+        "self": {
+            "href": "http://localhost:8081/rooms{?page,size,sort}",
+            "templated": true
+        }
+    },
+    "page": {
+        "number": 0,
+        "size": 20,
+        "totalElements": 1,
+        "totalPages": 1
+    }
+}
+
+
+http://localhost:8080/html/roomList.html
+
+http POST localhost:8085/html/mypages/ roomId=1 roomName="잠실" price=10000 guestName=양윤철 bookingDate="20210627" address="광화문" bookId=1 payAmt=1000 payDate="20210627" status="결재완료" host="호스트"
+
