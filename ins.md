@@ -160,21 +160,38 @@ public class MypageViewHandler {
     public void whenEventOccurred (@Payload Mypage eventInfo) {
         try {
 
-            //가입설계, 청약건만 수신 처리
-            if(eventStr.indexOf("plan") < 0  && eventStr.indexOf("prps") < 0) {
-                return;
-            }
+            //가입설계
+            if( "PlanSaved".equalsIgnoreCase(eventType) || "PrductDesdCreated".equalsIgnoreCase(eventType)) {
+                
+                List<Mypage> mypageList = mypageRepository.findByCustNoAndPpsdsnNo(custNo, ppsdsnNo);
 
-            List<Mypage> mypageList = mypageRepository.findByCustNoAndPpsdsnNo(custNo, ppsdsnNo);
+                if(ObjectUtils.isEmpty(mypageList)) {
+                    Mypage mypage = new Mypage();
+                    BeanUtils.copyProperties(eventInfo, mypage);
+    
+                    mypageRepository.save(mypage);
+                }
+    
+                for(Mypage mypage : mypageList){
+    
+                    String progSt = eventInfo.getProgSt();
+                    if( "PrductDesdCreated".equalsIgnoreCase(eventType)) {
+                        
+                        if(StringUtils.isEmpty(progSt)) {
+                            progSt = "상품설명서생성완료";
+                        }
 
-            if(ObjectUtils.isEmpty(mypageList)) {
-                Mypage mypage = new Mypage();
-                BeanUtils.copyProperties(eventInfo, mypage);
-                mypageRepository.save(mypage);
-            }
+                        mypage.setProdDesdIsueDt(DateUtils.getCurrentDate(DateUtils.EMPTY_DATE_TYPE));
+                        
+                    }
 
-            for(Mypage mypage : mypageList){
-                mypageRepository.save(mypage);
+                    mypage.setEventType(eventType);
+                    mypage.setProgSt(progSt);
+
+                    mypage.setChgDtm(DateUtils.getCurDtm());
+
+                    mypageRepository.save(mypage);
+                }
             }
             
         }catch (Exception e){
@@ -183,6 +200,10 @@ public class MypageViewHandler {
     }
 }
 ```
+![mypage_가설](https://user-images.githubusercontent.com/84304227/124385658-a8bbe200-dd11-11eb-9818-718e8d05eeb7.PNG)
+
+![mypage_상설](https://user-images.githubusercontent.com/84304227/124385660-ad809600-dd11-11eb-86dc-ebcba9c3a119.PNG)
+
 ## API 게이트웨이
 1. gateway 스프링부트 App을 추가 후 application.yaml내에 각 마이크로 서비스의 routes 를 추가하고 gateway 서버의 포트를 8080 으로 설정함
 - application.yaml 예시
