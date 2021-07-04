@@ -400,17 +400,17 @@ alarm은 SQL DB를 사용하였다.
 
 ## 동기식 호출 과 Fallback 처리
 
-분석단계에서의 조건 중 하나로 주문(app)->결제(pay) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
+분석단계에서의 조건 중 하나로 청약(proposal)->결제(payment) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
 
 - 결제서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
 
 ```
 #  PaymentService.java
 
-package ezdelivery.external;
+package ezinsurance.external;
 
-//api.url.payment ==> http://localhost:8083
-@FeignClient(name="pay", url="http://localhost:8083")
+//api.url.payment ==> http://localhost:8080
+@FeignClient(name="pay", url="http://localhost:8080")
 public interface PaymentService {
 
     @RequestMapping(method= RequestMethod.GET, path="/payments")
@@ -421,33 +421,26 @@ public interface PaymentService {
 
 - 주문을 받은 직후(@PostPersist) 결제를 요청하도록 처리
 ```
-# Order.java (Entity)
+# Proposal.java (Entity)
 
-    @PostPersist
-    public void onPostPersist(){
+    @PrePersist
+    public void onPrePersist(){
 
-        ezdelivery.external.Payment payment = new ezdelivery.external.Payment();
+        ezinsurance.external.Payment payment = new ezinsurance.external.Payment();
         BeanUtils.copyProperties(this, payment);
-        payment.setOrderId(getId());
 
-        payment.setPayAmt(getPrice() * getOrderNumber());
-        payment.setPayDate(new SimpleDateFormat("YYYYMMdd").format(new Date()));
-        payment.setStatus("결재승인");
+	//결재처리후 데이터처리
+        ProposalApplication.applicationContext.getBean(ezinsurance.support.external.PaymentService.class)
+            .makePay(payment);
 
-        try {
-            OrderApplication.applicationContext.getBean(ezdelivery.external.PaymentService.class).makePay(payment);
+        this.setPrpsStcd("10");
+        this.setPrpsStnm("청약");
+
+        this.setContStcd("30");
+        this.setContStnm("초회납입");
         
-        }catch(Exception e) {
-            throw new RuntimeException("결제서비스 호출 실패입니다."+e.getLocalizedMessage());
-            //e.printStackTrace();
-        }
-
-        // 결제까지 완료되면 최종적으로 예약 완료 이벤트 발생
-        Ordered ordered = new Ordered();
-        BeanUtils.copyProperties(this, ordered);
-        ordered.setStatus("결재승인");
-        ordered.publishAfterCommit();
-
+        this.setDpsDt(DateUtils.getCurrentDate(DateUtils.EMPTY_DATE_TYPE)); //
+        this.setPrpsNo(DateUtils.getCurDtm());
     }
 ```
 
@@ -455,7 +448,7 @@ public interface PaymentService {
 
 
 ```
-# 결제 (pay) 서비스를 잠시 내려놓음 (ctrl+c)
+# 결제 (payment) 서비스를 잠시 내려놓음 (ctrl+c)
 
 #주문처리
 
@@ -832,16 +825,7 @@ HTTP/1.1 201     0.68 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     0.70 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     0.73 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.75 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.77 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.97 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.81 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     0.87 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.12 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.16 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.17 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.26 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.25 secs:     207 bytes ==> POST http://localhost:8081/orders
+
 
 * 요청이 과도하여 CB를 동작함 요청을 차단
 
@@ -861,12 +845,7 @@ HTTP/1.1 201     1.36 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     1.63 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     1.65 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     1.68 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.69 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.71 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.71 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.74 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.76 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     1.79 secs:     207 bytes ==> POST http://localhost:8081/orders
+
 
 * 다시 요청이 쌓이기 시작하여 건당 처리시간이 610 밀리를 살짝 넘기기 시작 => 회로 열기 => 요청 실패처리
 
@@ -886,19 +865,7 @@ HTTP/1.1 201     2.21 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     2.29 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     2.30 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     2.38 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     2.59 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     2.61 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     2.62 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     2.64 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.01 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.27 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.33 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.45 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.52 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.57 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.69 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.70 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.69 secs:     207 bytes ==> POST http://localhost:8081/orders
+
 
 * 이후 이러한 패턴이 계속 반복되면서 시스템은 도미노 현상이나 자원 소모의 폭주 없이 잘 운영됨
 
@@ -907,31 +874,7 @@ HTTP/1.1 500     4.76 secs:     248 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 500     4.23 secs:     248 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     4.76 secs:     207 bytes ==> POST http://localhost:8081/orders
 HTTP/1.1 201     4.74 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.82 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.82 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.84 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.66 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     5.03 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.22 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.19 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.18 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.69 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.65 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     5.13 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.84 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.25 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.25 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.80 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.87 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.33 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.86 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.96 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.34 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 500     4.04 secs:     248 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.50 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.95 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.54 secs:     207 bytes ==> POST http://localhost:8081/orders
-HTTP/1.1 201     4.65 secs:     207 bytes ==> POST http://localhost:8081/orders
+
 
 
 :
@@ -1074,6 +1017,73 @@ Concurrency:		       96.02
 ```
 
 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
+
+
+#  ConfigMap 사용
+--시스템별로 또는 운영중에 동적으로 변경 가능성이 있는 설정들을 ConfigMap을 사용하여 관리합니다.
+
+```
+#application.yml
+
+  jpa:
+    hibernate:
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+      ddl-auto: update
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQL57Dialect
+  datasource:
+    url: jdbc:mysql://database-1.csvj9ae9rzmk.ap-northeast-2.rds.amazonaws.com:3306/${DATASOURCE_SCHEMA}
+    username: ${DATASOURCE_USERNAME}
+    password: ${DATASOURCE_PASSWORD}
+    driverClassName: org.mariadb.jdbc.Driver
+    
+
+#configmap.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ezinsurance-config
+  namespace: ezinsurance
+data:
+  # maribdb 접속정보
+  datasource.schema: "classicmodels"
+  datasource.username: "sklina"
+  datasource.password: "????????"
+  api.url.payment: http://paymemt:8080
+  alarm.prefix: Hello
+
+#yaml/plan.yaml (configmap 사용)
+
+      containers:
+        - name: order
+          image: 740569282574.dkr.ecr.eu-central-1.amazonaws.com/user08-ezinsurance-order:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+#환경설정 START
+          env:
+            - name: DATASOURCE_SCHEMA
+              valueFrom:
+                configMapKeyRef:
+                  name: ezinsurance-config
+                  key: datasource.schema
+            - name: DATASOURCE_USERNAME
+              valueFrom:
+                configMapKeyRef:
+                  name: ezdelivery-config
+                  key: datasource.username
+            - name: DATASOURCE_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: ezdelivery-config
+                  key: datasource.password
+#환경설정 END
+```		  
 
 
 # 신규 개발 조직의 추가
