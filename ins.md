@@ -1,8 +1,6 @@
-## ezdelivery
+## ez보험가입
 
-![image](https://user-images.githubusercontent.com/487999/79708354-29074a80-82fa-11ea-80df-0db3962fb453.png)
-
-본 프로젝트는 MSA/DDD/Event Storming/EDA 를 포괄하는 분석/설계/구현/운영 전단계를 커버하고 배달서비스 쉽게 따라하기 입니다.
+본 프로젝트는 MSA/DDD/Event Storming/EDA 를 포괄하는 분석/설계/구현/운영 전단계를 커버하고 보험가입서비스 쉽게 따라하기 입니다.
 
 - 체크포인트 : https://workflowy.com/s/assessment-check-po/T5YrzcMewfo4J6LW
 
@@ -118,103 +116,16 @@
   ![image](https://user-images.githubusercontent.com/487999/79684144-2a893200-826a-11ea-9a01-79927d3a0107.png)
 
 ## TO-BE 조직 (Vertically-Aligned)
-  ![image](https://user-images.githubusercontent.com/487999/79684159-3543c700-826a-11ea-8d5f-a3fc0c4cad87.png)
 
 
 ## Event Storming 결과
-* MSAEz 로 모델링한 이벤트스토밍 결과: http://www.msaez.io/#/storming/ENCK1RBctmd90lE6Nh3Ch5cDhsI2/mine/95c737a498c29571a1e6686720027fea
-
-
-### 이벤트 도출
- 우선 시간의 흐름에 따라 비지니스의 상태 변경(생성,변경,삭제 등)을 의미하는 도메인 이벤트를 도출한다
-![이벤트도출](https://user-images.githubusercontent.com/84304227/122169306-3a28f880-ceb8-11eb-9cea-173e118f755f.PNG)
-
-### 부적격 이벤트 탈락
-![부적격이벤트탈락](https://user-images.githubusercontent.com/84304227/122169352-4614ba80-ceb8-11eb-86be-cbaafdf2402b.PNG)
-
-    - 과정중 도출된 잘못된 도메인 이벤트들을 걸러내는 작업을 수행함
-        - 주문시>메뉴가 선택됨, 주문확인됨, 결제버튼이 클릭됨, 상점에 주문정보전달됨, 주문정보조회됨 :  UI 의 이벤트, 업무적인 의미의 이벤트가 아니라서 제외
-
-### 액터, 커맨드 부착하여 읽기 좋게
-- 엑터는 사람이나 조직이 될 수 있는데 역할 관점으로 도출한다. 엑터는 추상적으로 식별하지 말고 비지니스를 수행하는 구체적인 역할로 고려하여 도출한다. 
-- 이벤트를 트리거하는(발생시키는) 커맨드를 도출한다. 커맨드는 동사 형태가 된다.
-
-![액터 컴맨드읽기좋게](https://user-images.githubusercontent.com/84304227/122169788-c3402f80-ceb8-11eb-9515-38d8570d54af.PNG)
-
-### 어그리게잇으로 묶기
-어그리게잇은 커맨드와 이벤트가 영향을 주는 데이터 요소이다.
-명사형이고 노란색 포스트잇에 작성하여 커맨드와 이벤트 사이의 상단에 겹쳐서 붙인다.
-
-![어그릿게잇으로묶기](https://user-images.githubusercontent.com/84304227/122169817-ce935b00-ceb8-11eb-9838-d380eced6dd6.PNG)
-
-- app의 Order, store 의 주문처리, 결제의 결제이력은 그와 연결된 command 와 event 들에 의하여 트랜잭션이 유지되어야 하는 단위로 그들 끼리 묶어줌
-
-### 바운디드 컨텍스트로 묶기
-
-![바운디드켄텍스트로묶기](https://user-images.githubusercontent.com/84304227/122169883-e79c0c00-ceb8-11eb-92a0-c9a0cc3c318b.PNG)
-
-    - 도메인 서열 분리 
-        - Core Domain:  app(front), store : 없어서는 안될 핵심 서비스이며, 연견 Up-time SLA 수준을 99.999% 목표, 배포주기는 app 의 경우 1주일 1회 미만, store 의 경우 1개월 1회 미만
-        - Supporting Domain:   marketing, customer : 경쟁력을 내기위한 서비스이며, SLA 수준은 연간 60% 이상 uptime 목표, 배포주기는 각 팀의 자율이나 표준 스프린트 주기가 1주일 이므로 1주일 1회 이상을 기준으로 함.
-        - General Domain:   pay : 결제서비스로 3rd Party 외부 서비스를 사용하는 것이 경쟁력이 높음 (핑크색으로 이후 전환할 예정)
-
-### 폴리시 부착 (괄호는 수행주체, 폴리시 부착을 둘째단계에서 해놔도 상관 없음. 전체 연계가 초기에 드러남)
-정책은 이벤트 뒤에 따라오는 반응 적인 비지니스 로직이며 어디인가에 존재하는 커맨드를 트리거 한다.
-
-![폴리시부착](https://user-images.githubusercontent.com/84304227/122169969-013d5380-ceb9-11eb-891f-fe44c4663788.PNG)
-
-### 폴리시의 이동과 컨텍스트 매핑 (점선은 Pub/Sub, 실선은 Req/Resp)
-
-비동기 호출은 커맨드가 수행주체의 폴리시로 이동
-
-![폴리시의 이동과 컨텍스트 매핑](https://user-images.githubusercontent.com/84304227/122169980-04d0da80-ceb9-11eb-8372-977ba017b83a.PNG)
-
-### 완성된 1차 모형
-
-![완성된1차모형](https://user-images.githubusercontent.com/84304227/122170046-16b27d80-ceb9-11eb-9886-3a4446cb7877.PNG)
-
-    - View Model 추가
-
-### 1차 완성본에 대한 기능적/비기능적 요구사항을 커버하는지 검증
-
-![완성된1차모형_기능검증1](https://user-images.githubusercontent.com/84304227/122170091-25009980-ceb9-11eb-8661-67a5dc64cf8c.png)
-
-    - 고객이 메뉴를 선택하여 주문한다 (ok)
-    - 고객이 결제한다 (ok)
-    - 주문이 되면 주문 내역이 입점상점주인에게 전달된다 (ok)
-    - 상점주인이 확인하여 요리해서 배달 출발한다 (ok)
-
-![완성된1차모형수정](https://user-images.githubusercontent.com/84304227/122170105-28942080-ceb9-11eb-9ee7-b27927cb0cbf.PNG)
-    - 고객이 주문을 취소할 수 있다 (ok)
-    - 주문이 취소되면 배달이 취소된다 (ok)
-    - 고객이 주문상태를 중간중간 조회한다 (View-green sticker 의 추가로 ok) 
-    - 주문상태가 바뀔 때 마다 카톡으로 알림을 보낸다 (?)
-
-
-### 모델 수정
-
-![완성된1차모형수정_기능검증2](https://user-images.githubusercontent.com/84304227/122170121-2b8f1100-ceb9-11eb-9495-68bd020af57d.png)
-
-    
-    - 수정된 모델은 모든 요구사항을 커버함.
-
-### 비기능 요구사항에 대한 검증
-
-![비기능요구사항에대한검증](https://user-images.githubusercontent.com/84304227/122170321-698c3500-ceb9-11eb-86c7-6cedb91f039a.png)
-
-    - 마이크로 서비스를 넘나드는 시나리오에 대한 트랜잭션 처리
-        - 고객 주문시 결제처리:  결제가 완료되지 않은 주문은 절대 받지 않는다는 경영자의 오랜 신념(?) 에 따라, ACID 트랜잭션 적용. 주문와료시 결제처리에 대해서는 Request-Response 방식 처리
-        - 결제 완료시 점주연결 및 배송처리:  App(front) 에서 Store 마이크로서비스로 주문요청이 전달되는 과정에 있어서 Store 마이크로 서비스가 별도의 배포주기를 가지기 때문에 Eventual Consistency 방식으로 트랜잭션 처리함.
-        - 나머지 모든 inter-microservice 트랜잭션: 주문상태, 배달상태 등 모든 이벤트에 대해 카톡을 처리하는 등, 데이터 일관성의 시점이 크리티컬하지 않은 모든 경우가 대부분이라 판단, Eventual Consistency 를 기본으로 채택함.
-
 ### 최종 모델링
 
-![최종소스기반모델링](https://user-images.githubusercontent.com/84304227/122336179-635c8e00-cf77-11eb-9b4b-98c6b672c650.PNG)
+![ezInsurance_event](https://user-images.githubusercontent.com/84304227/124379147-3ab2f300-dcf0-11eb-8c88-5a363cf2e5b5.PNG)
 
 ## 헥사고날 아키텍처 다이어그램 도출
     
-![헥사고날아키텍처_new](https://user-images.githubusercontent.com/84304227/122347692-4464f880-cf85-11eb-8567-c58a622aa929.png)
-
+![헥사고날](https://user-images.githubusercontent.com/84304227/124379158-4c949600-dcf0-11eb-94d6-ef8fe1363377.png)
 
     - Chris Richardson, MSA Patterns 참고하여 Inbound adaptor와 Outbound adaptor를 구분함
     - 호출관계에서 PubSub 과 Req/Resp 를 구분함
@@ -226,26 +137,13 @@
 
 # 구현:
 
-분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 BC별로 대변되는 마이크로 서비스들을 스프링부트와 파이선으로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다 (각자의 포트넘버는 8081 ~ 808n 이다)
-
-```
-cd app
-mvn spring-boot:run
-
-cd pay
-mvn spring-boot:run 
-
-cd store
-mvn spring-boot:run  
-
-cd customer
-python policy-handler.py 
-```
+분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 BC별로 대변되는 마이크로 서비스들을 스프링부트로 구현하였다. 
+구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다 (각자의 포트넘버는 8081 ~ 808n 이다)
 
 ## CQRS
 CQRS는 Command and Query Responsibility Segregation(명령과 조회의 책임 분리)을 나타냅니다.
 
-리뷰 및 주문/결재/배달 등  Status 에 대하여 점주 및 고객이 조회 할 수 있도록 CQRS 로 구현하였다.
+가입설계저장/상품설명서발행/청약저장/결재(초회입급)/ 등이 진행상태 에 대하여 관리자와 고객이 조회 할 수 있도록 CQRS 로 구현하였다.
 
 ```
 @Service
@@ -256,53 +154,33 @@ public class MypageViewHandler {
     private MypageRepository mypageRepository;
 
     //-----------------------------------------------------
-    // 주문되었을 때
+    // 이벤트 수신
     //-----------------------------------------------------
     @StreamListener(KafkaProcessor.INPUT)
-    public void whenOrdered_then_CREATE_1 (@Payload Ordered ordered) ;
-
-    //-----------------------------------------------------
-    // 주문취소되었을 때
-    //-----------------------------------------------------
-    @StreamListener(KafkaProcessor.INPUT)
-        public void whenOrderCanceled_then_UPDATE_1(@Payload OrderCanceled orderCanceled) {
+    public void whenEventOccurred (@Payload Mypage eventInfo) {
         try {
 
-            if (!orderCanceled.validate()) return;
+            //가입설계, 청약건만 수신 처리
+            if(eventStr.indexOf("plan") < 0  && eventStr.indexOf("prps") < 0) {
+                return;
+            }
 
-            System.out.println("\n\n##### listener whenOrderCanceled_then_UPDATE_1 : " + orderCanceled.toJson() + "\n\n");
+            List<Mypage> mypageList = mypageRepository.findByCustNoAndPpsdsnNo(custNo, ppsdsnNo);
 
-            List<Mypage> mypageList = mypageRepository.findByOrderId(orderCanceled.getId());
-            for(Mypage mypage : mypageList){
-                // view 객체에 이벤트의 eventDirectValue 를 set 함
-
-                if(StringUtils.isEmpty(orderCanceled.getStatus())) {
-                    orderCanceled.setStatus("주문취소");
-                }
-                 mypage.setStatus(orderCanceled.getStatus());
-
+            if(ObjectUtils.isEmpty(mypageList)) {
+                Mypage mypage = new Mypage();
+                BeanUtils.copyProperties(eventInfo, mypage);
                 mypageRepository.save(mypage);
             }
 
-
+            for(Mypage mypage : mypageList){
+                mypageRepository.save(mypage);
+            }
+            
         }catch (Exception e){
             e.printStackTrace();
         }
     }
-
-    //-----------------------------------------------------
-    // 배달시작되었을 때 --구현내용 상위 참조
-    //-----------------------------------------------------
-    @StreamListener(KafkaProcessor.INPUT)
-    public void whenDeliveryStarted_then_CREATE_3 (@Payload DeliveryStarted deliveryStarted) ;
-
-
-    //-----------------------------------------------------
-    // 결재취소되었을 때 --구현내용 상위 참조
-    //-----------------------------------------------------
-    @StreamListener(KafkaProcessor.INPUT)
-    public void whenPayCanceled_then_UPDATE_2(@Payload PayCanceled payCanceled);
-
 }
 ```
 ## API 게이트웨이
@@ -315,18 +193,14 @@ spring:
   cloud:
     gateway:
       routes:
-        - id: store
-          uri: http://store:8080
+        - id: plan
+          uri: http://plan:8080
           predicates:
-            - Path=/stores/**
-        - id: html
-          uri: http://html:8080
+            - Path=/plans/** 
+        - id: customer
+          uri: http://customer:8080
           predicates:
-            - Path=/**
-        - id: order
-          uri: http://order:8080
-          predicates:
-            - Path=/orders/** 
+            - Path=/customers/** 
         - id: payment
           uri: http://payment:8080
           predicates:
@@ -335,19 +209,18 @@ spring:
           uri: http://alarm:8080
           predicates:
             - Path=/msgs/** 
-        - id: mypage
-          uri: http://mypage:8080
+        - id: myinsurance
+          uri: http://myinsurance:8080
           predicates:
-            - Path=/reviews/** /mypages/**
-        - id: delivery
-          uri: http://delivery:8080
+            - Path= /mypages/**
+        - id: proposal
+          uri: http://proposal:8080
           predicates:
-            - Path=/deliveries/** 
-#html 경로는 root path로 맨 나중에 위치함
-        - id: html
-          uri: http://html:8080
+            - Path=/proposals/** 
+        - id: product
+          uri: http://product:8080
           predicates:
-            - Path=/**
+            - Path=/products/**, /productDocuments/** 
       globalcors:
         corsConfigurations:
           '[/**]':
@@ -364,15 +237,15 @@ server:
 ```
 
 ## Correlation
-프로젝트에서는 PolicyHandler에서 처리 시 어떤 건에 대한 처리인지를 구별하기 위한 Correlation-key 구현을 이벤트 클래스 안의 변수로 전달받아 서비스간 연관된 처리를 정확하게 구현하고 있습니다.
+프로젝트에서는 PolicyHandler에서 처리 시 어떤 건에 대한 처리인지를 구별하기 위한 Correlation-key 구현을 이벤트 클래스 안의 변수로 전달받아 
+서비스간 연관된 처리를 정확하게 구현하고 있습니다.
 
 각각의 MSA 서비스는 자신이 보유한 서비스내 Local 트랜잭션을 관리하며, 트랜잭션이 종료되면 완료 Event를 발행합니다. 
 만약 그 다음에 수행되어야할 트랜잭션이 있다면,  해당 트랜잭션을 수행해야하는 App에서 완료 Event를 수신받고 다음 작업을 처리합니다. 
 이때 Event는 Kafka와 같은 메시지 큐를 이용해서 비동기 방식으로 전달한다.
 
-주문을 하면 동시에 연관된 주문(Order), 결제(Payment) 등의 서비스의 상태가 적당하게 변경이 되고,
-주문을 취소하면 다시 연관된 Strore, 주문, 결제(Payment) 등의 서비스의 상태값 등의 데이터가 변경되는 것을 확인할 수 있습니다.
-
+가입설계를 하면 동시에 상품설계서발행(Prodcut), 발행이되면 서비스의 상태가 적당하게 변경이 되고
+청약시 결재(초회입금)을 취소하면 다시 연관된 ,청약 등의 서비스의 상태값 등의 데이터가 변경되는 것을 확인할 수 있습니다.
 
 
 ## DDD(Domain-Driven Design) 의 적용
@@ -387,7 +260,7 @@ Bounded Context내의 도메인 주요개념을 표현하기 위해 도메인내
 - 하지만, 일부 구현에 있어서 영문이 아닌 경우는 실행이 불가능한 경우가 있기 때문에 계속 사용할 방법은 아닌것 같다. (Maven pom.xml, Kafka의 topic id, FeignClient 의 서비스 id 등은 한글로 식별자를 사용하는 경우 오류가 발생하는 것을 확인하였다)
 
 ```
-package ezdelivery;
+package ezinsurance;
 
 import javax.persistence.*;
 import org.springframework.beans.BeanUtils;
@@ -401,91 +274,28 @@ public class Payment {
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
     private Long id;
-    private Long storeId;  //상점ID
-    private String storeName; //상점명
-    private String host; //점주
-    private String menuName; //메뉴명
-    private Double payAmt; //결제금액
-    private String payDate; //결제일자
-    private String status; //상태
-    private Long orderId; //주문ID
-    private Long orderNumber; //주문건수
-    private String guestName; //고객명
 
-    public Long getId() {
-        return id;
-    }
+    @Column(name="prps_no"     , length=14) private String prpsNo    ; //청약번호
+    @Column(name="act_dcd"     , length=2)  private String actDcd    ; //계좌구분코드
+    @Column(name="cust_no"     , length=9)  private String custNo    ; //고객번호
+	  @Column(name="cust_nm"     , length=40) private String custNm    ; //고객명
+    @Column(name="finin_cd"    , length=3)  private String fininCd   ; //금융기관코드
+    @Column(name="finin_nm"    , length=50) private String fininNm   ; //금융기관명
+    @Column(name="act_no"      , length=50) private String actNo     ; //계좌번호
+    @Column(name="achd_nm"     , length=40) private String achdNm    ; //예금주명
+    @Column(name="act_stcd"    , length=2)  private String actStcd   ; //계좌상태코드
+    @Column(name="answ_cd"     , length=4)  private String answCd    ; //응답코드
+    @Column(name="sta_vrfc_dtm", length=14) private String staVrfcDtm; //상태확인일시
+    @Column(name="pay_amt"     , length=15) private BigDecimal payAmt; //결제금액
+    @Column(name="pay_dtm"     , length=14) private String payDtm    ; //결제일시
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-    public Long getStoreId() {
-        return storeId;
-    }
+    @PrePersist
+    public void onPrePersist(){
 
-    public void setStoreId(Long storeId) {
-        this.storeId = storeId;
     }
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
-    public Double getPayAmt() {
-        return payAmt;
-    }
-
-    public void setPayAmt(Double payAmt) {
-        this.payAmt = payAmt;
-    }
-    public String getPayDate() {
-        return payDate;
-    }
-
-    public void setPayDate(String payDate) {
-        this.payDate = payDate;
-    }
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-    public String getGuestName() {
-        return guestName;
-    }
-
-    public void setGuestName(String guestName) {
-        this.guestName = guestName;
-    }
-
-    public String getStoreName() {
-        return storeName;
-    }
-
-    public void setStoreName(String storeName) {
-        this.storeName = storeName;
-    }
-
-    public String getMenuName() {
-        return menuName;
-    }
-
-    public void setMenuName(String menuName) {
-        this.menuName = menuName;
-    }
-    public Long getOrderNumber() {
-        return orderNumber;
-    }
-
-    public void setOrderNumber(Long orderNumber) {
-        this.orderNumber = orderNumber;
-    }
-
-}
+ 
+     ... // 생략
+ }
 
 ```
 - Entity Pattern 과 Repository Pattern 을 적용하여 JPA 를 통하여 다양한 데이터소스 유형 (RDB or NoSQL) 에 대한 별도의 처리가 없도록 
