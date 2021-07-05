@@ -119,6 +119,17 @@
 
 
 ## Event Storming 결과
+
+### 이벤트 도출
+ 우선 시간의 흐름에 따라 비지니스의 상태 변경(생성,변경,삭제 등)을 의미하는 도메인 이벤트를 도출한다
+![이벤트도출](https://user-images.githubusercontent.com/84304227/124475013-3106b980-dddc-11eb-935f-6e2b15f5f102.PNG)
+
+### 부적격 이벤트 탈락
+![이벤트탈락](https://user-images.githubusercontent.com/84304227/124475020-349a4080-dddc-11eb-9154-33e47ce4657e.PNG)
+
+    - 과정중 도출된 잘못된 도메인 이벤트들을 걸러내는 작업을 수행함
+        -  UI 의 이벤트, 업무적인 의미의 이벤트가 아니라서 제외
+
 ### 최종 모델링
 
 ![ezInsurance_event](https://user-images.githubusercontent.com/84304227/124379147-3ab2f300-dcf0-11eb-8c88-5a363cf2e5b5.PNG)
