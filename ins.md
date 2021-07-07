@@ -31,14 +31,15 @@
 1. 보험상품관리자는 상품을 등록하고 변경한다.
 1. 고객이 고객정보 등록을 한다.
 1. 고객이 상품을 선택하여 보험료를 계산한다.
-1. 중간중간 고객은 가입설계 내역을 저장한다.
-1. 고객은 보험료 계산후 상품설명서 발행을 요청한다.
-1. 상품설명서가 발행되면 알림톡으로 발행내역을 전달한다
-1. 고객은 상품내역을 확인하고 청약을 진행한다.
-1. 고객이 보험의 초회보험료를 결제한다.
-1. 고객은 청약을 철회요청할 수 있다.
-1. 청약철회되면 결제가 취소 된다.
-1. 고객이나 보험관리자는 보험가입상태를 중간중간 조회한다.
+1. 보험료 산출시 보험료 인수조건(한도금액, 가입연령등)을 체크한다. 
+3. 중간중간 고객은 가입설계 내역을 저장한다.
+4. 고객은 보험료 계산후 상품설명서 발행을 요청한다.
+5. 상품설명서가 발행되면 알림톡으로 발행내역을 전달한다
+6. 고객은 상품내역을 확인하고 청약을 진행한다.
+7. 고객이 보험의 초회보험료를 결제한다.
+8. 고객은 청약을 철회요청할 수 있다.
+9. 청약철회되면 결제가 취소 된다.
+10. 고객이나 보험관리자는 보험가입상태를 중간중간 조회한다.
 
 비기능적 요구사항
 1. 트랜잭션
@@ -328,7 +329,7 @@ public class Payment {
     @Column(name="prps_no"     , length=14) private String prpsNo    ; //청약번호
     @Column(name="act_dcd"     , length=2)  private String actDcd    ; //계좌구분코드
     @Column(name="cust_no"     , length=9)  private String custNo    ; //고객번호
-	  @Column(name="cust_nm"     , length=40) private String custNm    ; //고객명
+    @Column(name="cust_nm"     , length=40) private String custNm    ; //고객명
     @Column(name="finin_cd"    , length=3)  private String fininCd   ; //금융기관코드
     @Column(name="finin_nm"    , length=50) private String fininNm   ; //금융기관명
     @Column(name="act_no"      , length=50) private String actNo     ; //계좌번호
@@ -436,68 +437,71 @@ alarm은 SQL DB를 사용하였다.
 
 분석단계에서의 조건 중 하나로 청약(proposal)->결제(payment) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다. 
 
-- 결제서비스를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
+- 상품서비스(인수기준 체크)를 호출하기 위하여 Stub과 (FeignClient) 를 이용하여 Service 대행 인터페이스 (Proxy) 를 구현 
 
 ```
-#  PaymentService.java
+#  ProductService.java
 
 package ezinsurance.external;
 
-//api.url.payment ==> http://localhost:8080
-@FeignClient(name="pay", url="http://localhost:8080")
-public interface PaymentService {
+@FeignClient(name="product", url="${api.url.product}")
+public interface ProductService {
 
-    @RequestMapping(method= RequestMethod.GET, path="/payments")
-    public void makePay(@RequestBody Payment payment);
+    @RequestMapping(method= RequestMethod.POST, path="/products/online", produces = "application/json")
+    public Map<String, Object> callService(@RequestBody Map<String, String> userData);
+
+    @RequestMapping(method= RequestMethod.POST, path="/products/chkProduct", produces = "application/json")
+    public Map<String, Object> chkProduct(@RequestBody Map<String, String> userData);
 
 }
 ```
 
-- 주문을 받은 직후(@PostPersist) 결제를 요청하도록 처리
+- 보험료 계산시 인수조건 체크하도록 처리
 ```
 # Proposal.java (Entity)
 
-    @PrePersist
-    public void onPrePersist(){
+	ProductVO productInfo = null;
+	try {
 
-        ezinsurance.external.Payment payment = new ezinsurance.external.Payment();
-        BeanUtils.copyProperties(this, payment);
+		Map<String, Object> outMap = PlanApplication.applicationContext.getBean(ProductService.class).callService(svcParam);
 
-	//결재처리후 데이터처리
-        ProposalApplication.applicationContext.getBean(ezinsurance.support.external.PaymentService.class)
-            .makePay(payment);
+		System.out.println("\n##### PLA001SVC outMap : " + outMap + "\n");
+		
+		String jsonStr= FwkUtils.toJson(outMap);
+						
+		System.out.println("\n##### PLA002SVC FwkUtils.toJson(outMap) : " + jsonStr + "\n");
 
-        this.setPrpsStcd("10");
-        this.setPrpsStnm("청약");
+		productInfo = FwkUtils.jsonToObject(jsonStr, "data", ProductVO.class);
 
-        this.setContStcd("30");
-        this.setContStnm("초회납입");
-        
-        this.setDpsDt(DateUtils.getCurrentDate(DateUtils.EMPTY_DATE_TYPE)); //
-        this.setPrpsNo(DateUtils.getCurDtm());
-    }
+		//System.out.println("\n##### PLA002SVC productInfo : " + productInfo.toString() + "\n");
+
+		BeanUtils.copyProperties(productInfo, out);
+
+	}catch(Exception e) {
+		throw new RuntimeException("보험료계산 오류 :: "+e.getLocalizedMessage());
+
+		//e.printStackTrace();
+	}
 ```
 
 - 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하며, 결제 시스템이 장애가 나면 주문도 못받는다는 것을 확인:
 
 
 ```
-# 결제 (payment) 서비스를 잠시 내려놓음 (ctrl+c)
+# 상품(product) 서비스를 잠시 내려놓음 (ctrl+c)
 
-#주문처리
-
-```
-- 주문실패
-![payment동기식호출실패](https://user-images.githubusercontent.com/84304227/122171998-4b273900-cebb-11eb-880c-79cf316934fa.PNG)
+#보험료계산 호출
 
 ```
-#결제서비스 재기동
-cd payment
-mvn spring-boot:run
+- 보험료계산실패
+![보험료계산오류](https://user-images.githubusercontent.com/84304227/124745375-b617dd00-df5a-11eb-9284-eeaf5fec6345.PNG)
 
-#주문처리
 ```
-![payment동기식호출성공](https://user-images.githubusercontent.com/84304227/122173656-eff64600-cebc-11eb-8f04-6c7d9fdcb82d.PNG)
+#상품(product) 재기동
+
+#보험료계산 호출
+```
+![보험료계산정상](https://user-images.githubusercontent.com/84304227/124745560-ec555c80-df5a-11eb-8833-8af565497057.PNG)
 
 - 또한 과도한 요청시에 서비스 장애가 도미노 처럼 벌어질 수 있다. (서킷브레이커, 폴백 처리는 운영단계에서 설명한다.)
 
@@ -506,12 +510,12 @@ mvn spring-boot:run
 ## 비동기식 호출 / 시간적 디커플링 / 장애격리 / 최종 (Eventual) 일관성 테스트
 
 
-결제가 이루어진 후에 상점시스템으로 이를 알려주는 행위는 동기식이 아니라 비 동기식으로 처리하여 상점 시스템의 처리를 위하여 결제주문이 블로킹 되지 않아도록 처리한다.
+결제가 이루어진 후에 청약시스템으로 이를 알려주는 행위는 동기식이 아니라 비 동기식으로 처리하여 청약 시스템의 처리를 위하여 결제서비스가 블로킹 되지 않아도록 처리한다.
  
 - 이를 위하여 결제이력에 기록을 남긴 후에 곧바로 결제승인이 되었다는 도메인 이벤트를 카프카로 송출한다(Publish)
  
 ```
-package ezdelivery;
+package ezinsurance;
 
 @Entity
 @Table(name="Payment_table")
@@ -571,9 +575,9 @@ public class PolicyHandler{
 
 ```
 
-상점 시스템은 주문/결제와 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 상점시스템이 유지보수로 인해 잠시 내려간 상태라도 주문을 받는데 문제가 없다:
+상품 시스템은 보험가입/결제시스템이 완전히 분리되어있으며, 이벤트 수신에 따라 처리되기 때문에, 상품시스템이 유지보수로 인해 잠시 내려간 상태라도 청약가입을 처리하는데 문제가 없다:
 ```
-# 상점 서비스 (store) 를 잠시 내려놓음 (ctrl+c)
+# 상품 서비스 (product) 를 잠시 내려놓음 (ctrl+c)
 
 #주문처리
 http localhost:8081/orders item=통닭 storeId=1   #Success
@@ -758,13 +762,13 @@ pipeline build script 는 각 프로젝트 폴더 이하에 cloudbuild.yml 에 �
 
 ## 동기식 호출 / 서킷 브레이킹 / 장애격리
 
-방식1) 서킷 브레이킹 프레임워크의 선택: istio-injection + DestinationRule
+서킷 브레이킹 프레임워크의 선택: istio-injection + DestinationRule
 
 ```
 kubectl get ns -L istio-injection
 kubectl label namespace ezdelivery istio-injection=enabled
 ````
-- 예약, 결제 서비스 모두 아무런 변경 없음
+- 약, 결제 서비스 모두 아무런 변경 없음
 - 부하테스터 siege 툴을 통한 서킷 브레이커 동작 확인:
 - 동시사용자 100명, 60초 동안 실시
 
@@ -788,56 +792,6 @@ cd ezdelivery/yaml
 kubectl delete -f dr-pay.yaml
 ```
 
-
-방식2) 서킷 브레이킹 프레임워크의 선택: Spring FeignClient + Hystrix 옵션을 사용하여 구현함
-
-시나리오는 주문(order)-->결제(pay) 시의 연결을 RESTful Request/Response 로 연동하여 구현이 되어있고, 결제 요청이 과도할 경우 CB 를 통하여 장애격리.
-
-- Hystrix 를 설정:  요청처리 쓰레드에서 처리시간이 610 밀리가 넘어서기 시작하여 어느정도 유지되면 CB 회로가 닫히도록 (요청을 빠르게 실패처리, 차단) 설정
-```
-# order_application.yml
-
-feign:
-  hystrix:
-    enabled: true
-
-hystrix:
-  command:
-    default:
-      execution.isolation.thread.timeoutInMilliseconds: 610
-      
-kubectl apply -f order_cb.yaml
-```
-
-
-```
-
-cd ezdelivery/yaml
-kubectl apply -f dr-pay.yaml
-
-istio-injection 활성화 및 pod container 확인
-kubectl get ns -L istio-injection
-kubectl label namespace ezdelivery istio-injection=enabled 
-
-
-```
-
-- 피호출 서비스(결제:pay) 의 임의 부하 처리 - 400 밀리에서 증감 220 밀리 정도 왔다갔다 하게
-```
-# (pay) 결제이력.java (Entity)
-
-    @PrePersist
-    public void onPrePersist(){  //결제이력을 저장한 후 적당한 시간 끌기
-
-        ...
-        
-        try {
-            Thread.currentThread().sleep((long) (400 + Math.random() * 220));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-```
 
 istio-injection 적용 (기 적용완료)
 ```
@@ -1051,6 +1005,12 @@ Concurrency:		       96.02
 ```
 
 배포기간 동안 Availability 가 변화없기 때문에 무정지 재배포가 성공한 것으로 확인됨.
+
+Self-healing (Liveness Probe)
+컨테이너가 기동 된후 initialDelaySecond에 설정된 값 만큼 대기를 했다가 periodSecond 에 정해진 주기 단위로 컨테이너의 헬스 체크를 한다. initialDelaySecond를 주는 이유는, 컨테이너가 기동 되면서 애플리케이션이 기동될텐데, 설정 정보나 각종 초기화 작업이 필요하기 때문에, 컨테이너가 기동되자 마자 헬스 체크를 하게 되면, 서비스할 준비가 되지 않았기 때문에 헬스 체크에 실패할 수 있기 때문에, 준비 기간을 주는 것이다. 준비 시간이 끝나면, periodSecond에 정의된 주기에 따라 헬스 체크를 진행하게 된다.
+
+이번 세션에서는, 특정 API 를 호출시 어플리케이션의 메모리 과부화를 발생시켜 서비스가 동작안하는 상황을 만든다. 그 후 livenessProbe 설정에 의하여 자동으로 서비스가 재시작 되는 실습을 한다.
+
 
 
 #  ConfigMap 사용
